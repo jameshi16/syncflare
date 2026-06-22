@@ -1,0 +1,25 @@
+{
+  "name": "syncflare",
+  "version": "0.1.0",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "bun tsc --noEmit",
+    "lint": "bunx eslint src/ tests/ example/",
+    "lint:fix": "bunx eslint --fix src/ tests/ example/",
+    "fmt": "bunx prettier --write 'src/**/*.ts' 'tests/**/*.ts' 'example/**/*.ts'",
+    "fmt:check": "bunx prettier --check 'src/**/*.ts' 'tests/**/*.ts' 'example/**/*.ts'"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "eslint": "^9.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5",
+    "typescript-eslint": "^8.0.0"
+  },
+  "dependencies": {
+    "chokidar": "^4.0.0"
+  }
+}
