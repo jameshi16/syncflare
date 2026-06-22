@@ -10,7 +10,9 @@
     "lint": "bunx eslint src/ tests/ example/",
     "lint:fix": "bunx eslint --fix src/ tests/ example/",
     "fmt": "bunx prettier --write 'src/**/*.ts' 'tests/**/*.ts' 'example/**/*.ts'",
-    "fmt:check": "bunx prettier --check 'src/**/*.ts' 'tests/**/*.ts' 'example/**/*.ts'"
+    "fmt:check": "bunx prettier --check 'src/**/*.ts' 'tests/**/*.ts' 'example/**/*.ts'",
+    "example:client": "bun run example/client/app.ts",
+    "example:server": "bun run example/server/httpServer.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",
