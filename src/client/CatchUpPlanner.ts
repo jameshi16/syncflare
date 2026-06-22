@@ -1,13 +1,13 @@
 import type { AtomicOperation } from "../types";
 import { FileLayer } from "./FileLayer";
 import { MetadataLayer } from "./MetadataLayer";
-import type { IServerBacking } from "../interfaces/IServerBacking";
+import type { IClientBacking } from "../interfaces/IClientBacking";
 
 export class CatchUpPlanner {
   constructor(
     private fileLayer: FileLayer,
     private metadata: MetadataLayer,
-    private serverBacking: IServerBacking,
+    private clientBacking: IClientBacking,
   ) {}
 
   async apply(ops: AtomicOperation[], newLogNumber: number): Promise<void> {
@@ -31,7 +31,7 @@ export class CatchUpPlanner {
     switch (op.op) {
       case "CREATE":
       case "REPLACE": {
-        const data = await this.serverBacking.get(op.path);
+        const data = await this.clientBacking.get(op.path);
         if (data) {
           await this.fileLayer.writeFile(op.path, data);
         }

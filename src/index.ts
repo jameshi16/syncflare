@@ -1,6 +1,7 @@
 export type { IServerDatabase } from "./interfaces/IServerDatabase";
 export type { IServerBacking } from "./interfaces/IServerBacking";
 export type { IClientDatabase } from "./interfaces/IClientDatabase";
+export type { IClientBacking } from "./interfaces/IClientBacking";
 export type { LogEntry, FileEntry, ClientState, AtomicOperation, OpKind } from "./types";
 export { OP_KINDS } from "./types";
 

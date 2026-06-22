@@ -3,13 +3,13 @@ import { MetadataLayer } from "./MetadataLayer";
 import { Reconciler } from "./Reconciler";
 import { CatchUpPlanner } from "./CatchUpPlanner";
 import { planChangeSet } from "../server/ChangeSetPlanner";
-import type { IServerBacking } from "../interfaces/IServerBacking";
+import type { IClientBacking } from "../interfaces/IClientBacking";
 import type { IClientDatabase } from "../interfaces/IClientDatabase";
 import type { LogEntry } from "../types";
 
 export interface SyncflareClientOptions {
   baseDir: string;
-  serverBacking: IServerBacking;
+  clientBacking: IClientBacking;
   clientDb: IClientDatabase;
   getChangesEndpoint: (after: number) => Promise<{ entries: LogEntry[]; latest: number }>;
   subscribeEndpoint?: string;
@@ -25,8 +25,8 @@ export class SyncflareClient {
   constructor(private options: SyncflareClientOptions) {
     this.fileLayer = new FileLayer(options.baseDir);
     this.metadata = new MetadataLayer(options.clientDb);
-    this.reconciler = new Reconciler(this.fileLayer, this.metadata, options.serverBacking);
-    this.catchUp = new CatchUpPlanner(this.fileLayer, this.metadata, options.serverBacking);
+    this.reconciler = new Reconciler(this.fileLayer, this.metadata, options.clientBacking);
+    this.catchUp = new CatchUpPlanner(this.fileLayer, this.metadata, options.clientBacking);
   }
 
   async boot(): Promise<{ pulled: number; deleted: number; applied: number }> {
@@ -62,7 +62,7 @@ export class SyncflareClient {
     }
 
     this.fileLayer.onEvent(async (event) => {
-      const serverData = await this.options.serverBacking.get(event.path);
+      const serverData = await this.options.clientBacking.get(event.path);
       if (serverData) {
         await this.fileLayer.writeFile(event.path, serverData);
         const hash = await this.hashBuffer(serverData);

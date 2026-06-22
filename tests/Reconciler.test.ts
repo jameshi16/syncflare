@@ -7,7 +7,7 @@ import { MetadataLayer } from "../src/client/MetadataLayer";
 import { Reconciler } from "../src/client/Reconciler";
 import { Database } from "bun:sqlite";
 import type { IClientDatabase } from "../src/interfaces/IClientDatabase";
-import type { IServerBacking } from "../src/interfaces/IServerBacking";
+import type { IClientBacking } from "../src/interfaces/IClientBacking";
 import type { FileEntry } from "../src/types";
 import { mapRowToFileEntry, decodeOrNull } from "./helpers";
 
@@ -61,17 +61,11 @@ class TestClientDB implements IClientDatabase {
   }
 }
 
-class TestServerBacking implements IServerBacking {
+class TestClientBacking implements IClientBacking {
   private store = new Map<string, Uint8Array>();
 
   async get(path: string): Promise<Uint8Array | null> {
     return this.store.get(path) ?? null;
-  }
-  async put(path: string, data: Uint8Array): Promise<void> {
-    this.store.set(path, data);
-  }
-  async delete(path: string): Promise<void> {
-    this.store.delete(path);
   }
 
   hasFile(path: string): boolean {
@@ -87,7 +81,7 @@ describe("Reconciler", () => {
   let tmpDir: string;
   let fileLayer: FileLayer;
   let metadata: MetadataLayer;
-  let serverBacking: TestServerBacking;
+  let clientBacking: TestClientBacking;
   let reconciler: Reconciler;
   let clientDb: TestClientDB;
 
@@ -107,8 +101,8 @@ describe("Reconciler", () => {
     fileLayer = new FileLayer(tmpDir);
     clientDb = new TestClientDB();
     metadata = new MetadataLayer(clientDb);
-    serverBacking = new TestServerBacking();
-    reconciler = new Reconciler(fileLayer, metadata, serverBacking);
+    clientBacking = new TestClientBacking();
+    reconciler = new Reconciler(fileLayer, metadata, clientBacking);
   }
 
   test("file on disk but not in DB and not on server gets deleted", async () => {
@@ -122,7 +116,7 @@ describe("Reconciler", () => {
   test("file on disk but not in DB but on server gets pulled (overwritten)", async () => {
     await setup();
     writeFileSync(join(tmpDir, "known.txt"), "local wrong content");
-    serverBacking.setFile("known.txt", "server content");
+    clientBacking.setFile("known.txt", "server content");
     await reconciler.run();
     const content = await fileLayer.readFile("known.txt");
     expect(decodeOrNull(content)).toBe("server content");
@@ -130,7 +124,7 @@ describe("Reconciler", () => {
 
   test("file in DB but missing from disk gets restored from server", async () => {
     await setup();
-    serverBacking.setFile("restore.txt", "please restore");
+    clientBacking.setFile("restore.txt", "please restore");
     await clientDb.upsertEntry({ path: "restore.txt", hash: "oldhash", mtime: 100, logNumber: 1 });
     await reconciler.run();
     const content = await fileLayer.readFile("restore.txt");
@@ -139,7 +133,7 @@ describe("Reconciler", () => {
 
   test("file with changed mtime and hash on disk gets overwritten from server", async () => {
     await setup();
-    serverBacking.setFile("stable.txt", "server version");
+    clientBacking.setFile("stable.txt", "server version");
     writeFileSync(join(tmpDir, "stable.txt"), "tampered version");
     await clientDb.upsertEntry({
       path: "stable.txt",

@@ -1,19 +1,19 @@
 import { SyncflareClient } from "../../src/client/SyncflareClient";
-import { ServerBacking } from "../server/ServerBacking";
 import { ClientDatabase } from "./ClientDatabase";
+import { HttpClientBacking } from "./HttpClientBacking";
 import { planChangeSet } from "../../src/server/ChangeSetPlanner";
+import type { LogEntry } from "../../src/types";
 
-const BASE_DIR = process.env.CLIENT_DIR ?? "./synced";
+const BASE_DIR = process.env.CLIENT_DIR ?? "./example/tmp/synced";
 const SERVER_URL = process.env.SERVER_URL ?? "http://localhost:3000";
-const BACKING_DIR = process.env.SERVER_BACKING ?? "./remote";
-const CLIENT_DB = process.env.CLIENT_DB ?? "client.db";
+const CLIENT_DB = process.env.CLIENT_DB ?? "./example/tmp/client.db";
 
-const serverBacking = new ServerBacking(BACKING_DIR);
+const clientBacking = new HttpClientBacking(SERVER_URL);
 const clientDb = new ClientDatabase(CLIENT_DB);
 
 const client = new SyncflareClient({
   baseDir: BASE_DIR,
-  serverBacking,
+  clientBacking,
   clientDb,
   getChangesEndpoint: async (after) => {
     const res = await fetch(`${SERVER_URL}/changes?after=${after}`);
@@ -21,7 +21,7 @@ const client = new SyncflareClient({
       entries: ReturnType<typeof planChangeSet>;
       latest: number;
     };
-    return json as unknown as { entries: import("../../src/types").LogEntry[]; latest: number };
+    return json as unknown as { entries: LogEntry[]; latest: number };
   },
   subscribeEndpoint: SERVER_URL.replace(/^http/, "ws") + "/subscribe",
 });

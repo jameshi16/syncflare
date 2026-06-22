@@ -1,12 +1,12 @@
 import { FileLayer } from "./FileLayer";
 import { MetadataLayer } from "./MetadataLayer";
-import type { IServerBacking } from "../interfaces/IServerBacking";
+import type { IClientBacking } from "../interfaces/IClientBacking";
 
 export class Reconciler {
   constructor(
     private fileLayer: FileLayer,
     private metadata: MetadataLayer,
-    private serverBacking: IServerBacking,
+    private clientBacking: IClientBacking,
   ) {}
 
   async run(): Promise<{ pulled: number; deleted: number }> {
@@ -22,7 +22,7 @@ export class Reconciler {
       const dbEntry = dbMap.get(path);
 
       if (!dbEntry) {
-        const serverData = await this.serverBacking.get(path);
+        const serverData = await this.clientBacking.get(path);
         if (serverData) {
           await this.fileLayer.writeFile(path, serverData);
           const newHash = await this.hashBuffer(serverData);
@@ -34,7 +34,7 @@ export class Reconciler {
           deleted++;
         }
       } else if (dbEntry.mtime !== diskInfo.mtime || dbEntry.hash !== diskInfo.hash) {
-        const serverData = await this.serverBacking.get(path);
+        const serverData = await this.clientBacking.get(path);
         if (serverData) {
           await this.fileLayer.writeFile(path, serverData);
           const newHash = await this.hashBuffer(serverData);
@@ -51,7 +51,7 @@ export class Reconciler {
 
     for (const [path, entry] of dbMap) {
       if (!diskFiles.has(path)) {
-        const serverData = await this.serverBacking.get(path);
+        const serverData = await this.clientBacking.get(path);
         if (serverData) {
           await this.fileLayer.writeFile(path, serverData);
           const newHash = await this.hashBuffer(serverData);

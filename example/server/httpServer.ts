@@ -5,8 +5,8 @@ import type { LogEntry } from "../../src/types";
 import { hashBuffer } from "../../src/util/hash";
 import type { ServerWebSocket } from "bun";
 
-const DB_PATH = process.env.SERVER_DB ?? "server.db";
-const BACKING_DIR = process.env.SERVER_BACKING ?? "./remote";
+const DB_PATH = process.env.SERVER_DB ?? "./example/tmp/server.db";
+const BACKING_DIR = process.env.SERVER_BACKING ?? "./example/tmp/remote";
 
 const db = new ServerDatabase(DB_PATH);
 const backing = new ServerBacking(BACKING_DIR);
@@ -69,7 +69,7 @@ async function handleGetFile(path: string): Promise<Response> {
   if (!data) {
     return new Response("Not found", { status: 404 });
   }
-  return new Response(data);
+  return new Response(new Blob([new Uint8Array(data)]));
 }
 
 async function handleChanges(req: Request): Promise<Response> {

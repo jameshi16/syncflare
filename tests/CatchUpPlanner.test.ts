@@ -8,7 +8,7 @@ import { CatchUpPlanner } from "../src/client/CatchUpPlanner";
 import { Database } from "bun:sqlite";
 import type { AtomicOperation } from "../src/types";
 import type { IClientDatabase } from "../src/interfaces/IClientDatabase";
-import type { IServerBacking } from "../src/interfaces/IServerBacking";
+import type { IClientBacking } from "../src/interfaces/IClientBacking";
 import type { FileEntry } from "../src/types";
 import { mapRowToFileEntry, decodeOrNull } from "./helpers";
 
@@ -54,17 +54,11 @@ class TestClientDB implements IClientDatabase {
   }
 }
 
-class TestServerBacking implements IServerBacking {
+class TestClientBacking implements IClientBacking {
   private store = new Map<string, Uint8Array>();
 
   async get(path: string): Promise<Uint8Array | null> {
     return this.store.get(path) ?? null;
-  }
-  async put(path: string, data: Uint8Array): Promise<void> {
-    this.store.set(path, data);
-  }
-  async delete(path: string): Promise<void> {
-    this.store.delete(path);
   }
 
   setFile(path: string, content: string): void {
@@ -80,7 +74,7 @@ describe("CatchUpPlanner", () => {
   let tmpDir: string;
   let fileLayer: FileLayer;
   let metadata: MetadataLayer;
-  let serverBacking: TestServerBacking;
+  let clientBacking: TestClientBacking;
   let planner: CatchUpPlanner;
   let clientDb: TestClientDB;
 
@@ -98,13 +92,13 @@ describe("CatchUpPlanner", () => {
     fileLayer = new FileLayer(tmpDir);
     clientDb = new TestClientDB();
     metadata = new MetadataLayer(clientDb);
-    serverBacking = new TestServerBacking();
-    planner = new CatchUpPlanner(fileLayer, metadata, serverBacking);
+    clientBacking = new TestClientBacking();
+    planner = new CatchUpPlanner(fileLayer, metadata, clientBacking);
   }
 
   test("applies CREATE operations by writing files", async () => {
     await setup();
-    serverBacking.setFile("new.txt", "hello world");
+    clientBacking.setFile("new.txt", "hello world");
     const ops: AtomicOperation[] = [{ op: "CREATE", path: "new.txt", hash: "abc" }];
     await planner.apply(ops, 1);
     const content = await fileLayer.readFile("new.txt");
@@ -113,7 +107,7 @@ describe("CatchUpPlanner", () => {
 
   test("applies REPLACE operations by overwriting files", async () => {
     await setup();
-    serverBacking.setFile("existed.txt", "updated");
+    clientBacking.setFile("existed.txt", "updated");
     writeFileSync(join(tmpDir, "existed.txt"), "original");
     const ops: AtomicOperation[] = [{ op: "REPLACE", path: "existed.txt", hash: "def" }];
     await planner.apply(ops, 2);
@@ -132,7 +126,7 @@ describe("CatchUpPlanner", () => {
 
   test("updates metadata and logNumber after apply", async () => {
     await setup();
-    serverBacking.setFile("meta.txt", "data");
+    clientBacking.setFile("meta.txt", "data");
     const ops: AtomicOperation[] = [{ op: "CREATE", path: "meta.txt", hash: "xyz" }];
     await planner.apply(ops, 42);
     const entry = await metadata.getEntry("meta.txt");
@@ -144,9 +138,9 @@ describe("CatchUpPlanner", () => {
 
   test("multiple operations can be applied in parallel", async () => {
     await setup();
-    serverBacking.setFile("a.txt", "aaa");
-    serverBacking.setFile("b.txt", "bbb");
-    serverBacking.setFile("c.txt", "ccc");
+    clientBacking.setFile("a.txt", "aaa");
+    clientBacking.setFile("b.txt", "bbb");
+    clientBacking.setFile("c.txt", "ccc");
     const ops: AtomicOperation[] = [
       { op: "CREATE", path: "a.txt", hash: "h1" },
       { op: "CREATE", path: "b.txt", hash: "h2" },
@@ -160,7 +154,7 @@ describe("CatchUpPlanner", () => {
 
   test("metadata is updated for all paths after apply", async () => {
     await setup();
-    serverBacking.setFile("keep.txt", "content");
+    clientBacking.setFile("keep.txt", "content");
     const ops: AtomicOperation[] = [
       { op: "CREATE", path: "keep.txt", hash: "hhh" },
       { op: "DELETE", path: "gone.txt", hash: "" },
