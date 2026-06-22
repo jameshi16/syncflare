@@ -49,7 +49,9 @@ export class FileLayer {
     }
   }
 
-  async scanAllFiles(knownEntries?: Map<string, { hash: string; mtime: number }>): Promise<Map<string, { hash: string; mtime: number }>> {
+  async scanAllFiles(
+    knownEntries?: Map<string, { hash: string; mtime: number }>,
+  ): Promise<Map<string, { hash: string; mtime: number }>> {
     const result = new Map<string, { hash: string; mtime: number }>();
     await this.scanDir("", result, knownEntries);
     return result;
