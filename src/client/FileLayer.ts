@@ -1,8 +1,9 @@
 import { watch, type FSWatcher } from "chokidar";
-import { readdir, stat, readFile, unlink, writeFile, mkdir } from "node:fs/promises";
+import { readdir, stat, readFile, unlink, mkdir } from "node:fs/promises";
 import type { Stats } from "node:fs";
 import { join, relative, dirname } from "node:path";
 import { normalizePath } from "../util/pathNormalizer";
+import { hashBuffer } from "../util/hash";
 
 export interface FileEvent {
   type: "add" | "change" | "unlink";
@@ -88,32 +89,40 @@ export class FileLayer {
           acc.set(relPath, { hash: known.hash, mtime: s.mtimeMs });
         } else {
           const content = await readFile(fullPath);
-          const hash = await this.hashContent(content);
+          const hash = await hashBuffer(content);
           acc.set(relPath, { hash, mtime: s.mtimeMs });
         }
       }
     }
   }
 
-  private async hashContent(data: Uint8Array): Promise<string> {
-    const digest = await crypto.subtle.digest("SHA-256", data.slice());
-    return Array.from(new Uint8Array(digest))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-  }
-
-  async readFile(path: string): Promise<Uint8Array | null> {
+  async readFile(path: string): Promise<ReadableStream<Uint8Array> | null> {
     try {
-      return await readFile(join(this.baseDir, path));
+      const file = Bun.file(join(this.baseDir, path));
+      if (!(await file.exists())) return null;
+      return file.stream();
     } catch {
       return null;
     }
   }
 
-  async writeFile(path: string, data: Uint8Array): Promise<void> {
+  async writeFile(path: string, stream: ReadableStream<Uint8Array>): Promise<void> {
     const fullPath = join(this.baseDir, path);
     await mkdir(dirname(fullPath), { recursive: true });
-    await writeFile(fullPath, data);
+    try {
+      await unlink(fullPath);
+    } catch {
+      // file doesn't exist yet
+    }
+    const file = Bun.file(fullPath);
+    const writer = file.writer();
+    const reader = stream.getReader();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      writer.write(value);
+    }
+    await writer.end();
   }
 
   async deleteFile(path: string): Promise<void> {

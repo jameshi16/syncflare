@@ -1,6 +1,7 @@
 import { FileLayer } from "./FileLayer";
 import { MetadataLayer } from "./MetadataLayer";
 import type { IClientBacking } from "../interfaces/IClientBacking";
+import { hashStream } from "../util/hash";
 
 export class Reconciler {
   constructor(
@@ -8,6 +9,15 @@ export class Reconciler {
     private metadata: MetadataLayer,
     private clientBacking: IClientBacking,
   ) {}
+
+  private async pullAndHash(path: string): Promise<{ hash: string } | null> {
+    const stream = await this.clientBacking.get(path);
+    if (!stream) return null;
+    const [forHash, forWrite] = stream.tee();
+    await this.fileLayer.writeFile(path, forWrite);
+    const newHash = await hashStream(forHash);
+    return { hash: newHash };
+  }
 
   async run(): Promise<{ pulled: number; deleted: number }> {
     const dbEntries = await this.metadata.getAllEntries();
@@ -22,24 +32,20 @@ export class Reconciler {
       const dbEntry = dbMap.get(path);
 
       if (!dbEntry) {
-        const serverData = await this.clientBacking.get(path);
-        if (serverData) {
-          await this.fileLayer.writeFile(path, serverData);
-          const newHash = await this.hashBuffer(serverData);
+        const result = await this.pullAndHash(path);
+        if (result) {
           const mtime = await this.fileLayer.getMtime(path);
-          await this.metadata.updateEntryFromFile(path, newHash, mtime ?? 0, 0);
+          await this.metadata.updateEntryFromFile(path, result.hash, mtime ?? 0, 0);
           pulled++;
         } else {
           await this.fileLayer.deleteFile(path);
           deleted++;
         }
       } else if (dbEntry.mtime !== diskInfo.mtime || dbEntry.hash !== diskInfo.hash) {
-        const serverData = await this.clientBacking.get(path);
-        if (serverData) {
-          await this.fileLayer.writeFile(path, serverData);
-          const newHash = await this.hashBuffer(serverData);
+        const result = await this.pullAndHash(path);
+        if (result) {
           const mtime = await this.fileLayer.getMtime(path);
-          await this.metadata.updateEntryFromFile(path, newHash, mtime ?? 0, dbEntry.logNumber);
+          await this.metadata.updateEntryFromFile(path, result.hash, mtime ?? 0, dbEntry.logNumber);
           pulled++;
         } else {
           await this.fileLayer.deleteFile(path);
@@ -51,12 +57,10 @@ export class Reconciler {
 
     for (const [path, entry] of dbMap) {
       if (!diskFiles.has(path)) {
-        const serverData = await this.clientBacking.get(path);
-        if (serverData) {
-          await this.fileLayer.writeFile(path, serverData);
-          const newHash = await this.hashBuffer(serverData);
+        const result = await this.pullAndHash(path);
+        if (result) {
           const mtime = await this.fileLayer.getMtime(path);
-          await this.metadata.updateEntryFromFile(path, newHash, mtime ?? 0, entry.logNumber);
+          await this.metadata.updateEntryFromFile(path, result.hash, mtime ?? 0, entry.logNumber);
           pulled++;
         } else {
           await this.metadata.removeEntry(path);
@@ -65,12 +69,5 @@ export class Reconciler {
     }
 
     return { pulled, deleted };
-  }
-
-  private async hashBuffer(data: Uint8Array): Promise<string> {
-    const digest = await crypto.subtle.digest("SHA-256", data.slice());
-    return Array.from(new Uint8Array(digest))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
   }
 }

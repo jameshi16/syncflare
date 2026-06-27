@@ -3,6 +3,7 @@ import { MetadataLayer } from "./MetadataLayer";
 import { Reconciler } from "./Reconciler";
 import { CatchUpPlanner } from "./CatchUpPlanner";
 import { planChangeSet } from "../server/ChangeSetPlanner";
+import { hashStream } from "../util/hash";
 import type { IClientBacking } from "../interfaces/IClientBacking";
 import type { IClientDatabase } from "../interfaces/IClientDatabase";
 import type { LogEntry } from "../types";
@@ -62,10 +63,11 @@ export class SyncflareClient {
     }
 
     this.fileLayer.onEvent(async (event) => {
-      const serverData = await this.options.clientBacking.get(event.path);
-      if (serverData) {
-        await this.fileLayer.writeFile(event.path, serverData);
-        const hash = await this.hashBuffer(serverData);
+      const stream = await this.options.clientBacking.get(event.path);
+      if (stream) {
+        const [forHash, forWrite] = stream.tee();
+        await this.fileLayer.writeFile(event.path, forWrite);
+        const hash = await hashStream(forHash);
         const mtime = await this.fileLayer.getMtime(event.path);
         await this.metadata.updateEntryFromFile(
           event.path,
@@ -86,12 +88,5 @@ export class SyncflareClient {
       this.ws = null;
     }
     await this.fileLayer.stopWatch();
-  }
-
-  private async hashBuffer(data: Uint8Array): Promise<string> {
-    const digest = await crypto.subtle.digest("SHA-256", data.slice());
-    return Array.from(new Uint8Array(digest))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
   }
 }

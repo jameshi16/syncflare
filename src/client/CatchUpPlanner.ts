@@ -31,9 +31,9 @@ export class CatchUpPlanner {
     switch (op.op) {
       case "CREATE":
       case "REPLACE": {
-        const data = await this.clientBacking.get(op.path);
-        if (data) {
-          await this.fileLayer.writeFile(op.path, data);
+        const stream = await this.clientBacking.get(op.path);
+        if (stream) {
+          await this.fileLayer.writeFile(op.path, stream);
         }
         break;
       }

@@ -9,7 +9,7 @@ import { Database } from "bun:sqlite";
 import type { IClientDatabase } from "../src/interfaces/IClientDatabase";
 import type { IClientBacking } from "../src/interfaces/IClientBacking";
 import type { FileEntry } from "../src/types";
-import { mapRowToFileEntry, decodeOrNull } from "./helpers";
+import { mapRowToFileEntry, decodeOrNull, stringToStream } from "./helpers";
 
 class TestClientDB implements IClientDatabase {
   private db: Database;
@@ -62,9 +62,9 @@ class TestClientDB implements IClientDatabase {
 }
 
 class TestClientBacking implements IClientBacking {
-  private store = new Map<string, Uint8Array>();
+  private store = new Map<string, ReadableStream<Uint8Array>>();
 
-  async get(path: string): Promise<Uint8Array | null> {
+  async get(path: string): Promise<ReadableStream<Uint8Array> | null> {
     return this.store.get(path) ?? null;
   }
 
@@ -73,7 +73,7 @@ class TestClientBacking implements IClientBacking {
   }
 
   setFile(path: string, content: string): void {
-    this.store.set(path, new TextEncoder().encode(content));
+    this.store.set(path, stringToStream(content));
   }
 }
 
@@ -119,7 +119,7 @@ describe("Reconciler", () => {
     clientBacking.setFile("known.txt", "server content");
     await reconciler.run();
     const content = await fileLayer.readFile("known.txt");
-    expect(decodeOrNull(content)).toBe("server content");
+    expect(await decodeOrNull(content)).toBe("server content");
   });
 
   test("file in DB but missing from disk gets restored from server", async () => {
@@ -128,7 +128,7 @@ describe("Reconciler", () => {
     await clientDb.upsertEntry({ path: "restore.txt", hash: "oldhash", mtime: 100, logNumber: 1 });
     await reconciler.run();
     const content = await fileLayer.readFile("restore.txt");
-    expect(decodeOrNull(content)).toBe("please restore");
+    expect(await decodeOrNull(content)).toBe("please restore");
   });
 
   test("file with changed mtime and hash on disk gets overwritten from server", async () => {
@@ -143,6 +143,6 @@ describe("Reconciler", () => {
     });
     await reconciler.run();
     const content = await fileLayer.readFile("stable.txt");
-    expect(decodeOrNull(content)).toBe("server version");
+    expect(await decodeOrNull(content)).toBe("server version");
   });
 });

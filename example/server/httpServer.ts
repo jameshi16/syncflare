@@ -2,7 +2,7 @@ import { ServerDatabase } from "./ServerDatabase";
 import { ServerBacking } from "./ServerBacking";
 import { planChangeSet } from "../../src/server/ChangeSetPlanner";
 import type { LogEntry } from "../../src/types";
-import { hashBuffer } from "../../src/util/hash";
+import { hashStream } from "../../src/util/hash";
 import type { ServerWebSocket } from "bun";
 
 const DB_PATH = process.env.SERVER_DB ?? "./example/tmp/server.db";
@@ -32,11 +32,12 @@ async function handleUpload(req: Request): Promise<Response> {
   }
 
   const path = file.name;
-  const data = new Uint8Array(await file.arrayBuffer());
-  const hash = await hashBuffer(data);
+  const stream = file.stream();
+  const [hashBranch, storeBranch] = stream.tee();
+  const hash = await hashStream(hashBranch);
   const timestamp = Date.now();
 
-  await backing.put(path, data);
+  await backing.put(path, storeBranch);
   const entry = await db.append("CREATE", path, hash, timestamp);
   broadcastLogEntry(entry);
 
@@ -44,11 +45,12 @@ async function handleUpload(req: Request): Promise<Response> {
 }
 
 async function handlePutFile(req: Request, path: string): Promise<Response> {
-  const data = new Uint8Array(await req.arrayBuffer());
-  const hash = await hashBuffer(data);
+  const stream = req.body!;
+  const [hashBranch, storeBranch] = stream.tee();
+  const hash = await hashStream(hashBranch);
   const timestamp = Date.now();
 
-  await backing.put(path, data);
+  await backing.put(path, storeBranch);
   const entry = await db.append("REPLACE", path, hash, timestamp);
   broadcastLogEntry(entry);
 
@@ -65,11 +67,11 @@ async function handleDeleteFile(path: string): Promise<Response> {
 }
 
 async function handleGetFile(path: string): Promise<Response> {
-  const data = await backing.get(path);
-  if (!data) {
+  const stream = await backing.get(path);
+  if (!stream) {
     return new Response("Not found", { status: 404 });
   }
-  return new Response(new Blob([new Uint8Array(data)]));
+  return new Response(stream);
 }
 
 async function handleChanges(req: Request): Promise<Response> {

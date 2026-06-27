@@ -13,5 +13,5 @@ export { MetadataLayer } from "./client/MetadataLayer";
 export { Reconciler } from "./client/Reconciler";
 export { CatchUpPlanner } from "./client/CatchUpPlanner";
 
-export { hashBuffer, hashString } from "./util/hash";
+export { hashBuffer, hashString, hashStream } from "./util/hash";
 export { normalizePath, joinAndNormalize } from "./util/pathNormalizer";

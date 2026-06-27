@@ -7,16 +7,16 @@ export interface IServerBacking {
   /**
    * Retrieves the raw content of a file from the backing store.
    * @param path - The normalized relative file path.
-   * @returns The file content as a byte array, or null if not found.
+   * @returns The file content as a readable stream, or null if not found.
    */
-  get(path: string): Promise<Uint8Array | null>;
+  get(path: string): Promise<ReadableStream<Uint8Array> | null>;
 
   /**
    * Stores file content in the backing store.
    * @param path - The normalized relative file path.
-   * @param data - The file content to store.
+   * @param stream - The file content to store as a readable stream.
    */
-  put(path: string, data: Uint8Array): Promise<void>;
+  put(path: string, stream: ReadableStream<Uint8Array>): Promise<void>;
 
   /**
    * Deletes a file from the backing store.

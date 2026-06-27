@@ -10,7 +10,7 @@ import type { AtomicOperation } from "../src/types";
 import type { IClientDatabase } from "../src/interfaces/IClientDatabase";
 import type { IClientBacking } from "../src/interfaces/IClientBacking";
 import type { FileEntry } from "../src/types";
-import { mapRowToFileEntry, decodeOrNull } from "./helpers";
+import { mapRowToFileEntry, decodeOrNull, stringToStream } from "./helpers";
 
 class TestClientDB implements IClientDatabase {
   private db: Database;
@@ -55,14 +55,14 @@ class TestClientDB implements IClientDatabase {
 }
 
 class TestClientBacking implements IClientBacking {
-  private store = new Map<string, Uint8Array>();
+  private store = new Map<string, ReadableStream<Uint8Array>>();
 
-  async get(path: string): Promise<Uint8Array | null> {
+  async get(path: string): Promise<ReadableStream<Uint8Array> | null> {
     return this.store.get(path) ?? null;
   }
 
   setFile(path: string, content: string): void {
-    this.store.set(path, new TextEncoder().encode(content));
+    this.store.set(path, stringToStream(content));
   }
 
   hasFile(path: string): boolean {
@@ -102,7 +102,7 @@ describe("CatchUpPlanner", () => {
     const ops: AtomicOperation[] = [{ op: "CREATE", path: "new.txt", hash: "abc" }];
     await planner.apply(ops, 1);
     const content = await fileLayer.readFile("new.txt");
-    expect(decodeOrNull(content)).toBe("hello world");
+    expect(await decodeOrNull(content)).toBe("hello world");
   });
 
   test("applies REPLACE operations by overwriting files", async () => {
@@ -112,7 +112,7 @@ describe("CatchUpPlanner", () => {
     const ops: AtomicOperation[] = [{ op: "REPLACE", path: "existed.txt", hash: "def" }];
     await planner.apply(ops, 2);
     const content = await fileLayer.readFile("existed.txt");
-    expect(decodeOrNull(content)).toBe("updated");
+    expect(await decodeOrNull(content)).toBe("updated");
   });
 
   test("applies DELETE operations by removing files", async () => {

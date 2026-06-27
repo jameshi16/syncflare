@@ -9,7 +9,33 @@ export function mapRowToFileEntry(row: Record<string, unknown>): FileEntry {
   };
 }
 
-export function decodeOrNull(data: Uint8Array | null): string | null {
-  if (data === null) return null;
+export async function decodeOrNull(
+  stream: ReadableStream<Uint8Array> | null,
+): Promise<string | null> {
+  if (stream === null) return null;
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+  }
+  const totalLength = chunks.reduce((acc, c) => acc + c.length, 0);
+  const data = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    data.set(chunk, offset);
+    offset += chunk.length;
+  }
   return new TextDecoder().decode(data);
+}
+
+export function stringToStream(content: string): ReadableStream<Uint8Array> {
+  const data = new TextEncoder().encode(content);
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(data);
+      controller.close();
+    },
+  });
 }
