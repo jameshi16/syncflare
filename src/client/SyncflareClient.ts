@@ -1,15 +1,15 @@
-import { FileLayer } from "./FileLayer";
 import { MetadataLayer } from "./MetadataLayer";
 import { Reconciler } from "./Reconciler";
 import { CatchUpPlanner } from "./CatchUpPlanner";
 import { planChangeSet } from "../server/ChangeSetPlanner";
 import { hashStream } from "../util/hash";
+import type { IFileLayer } from "../interfaces/IFileLayer";
 import type { IClientBacking } from "../interfaces/IClientBacking";
 import type { IClientDatabase } from "../interfaces/IClientDatabase";
 import type { LogEntry } from "../types";
 
 export interface SyncflareClientOptions {
-  baseDir: string;
+  fileLayer: IFileLayer;
   clientBacking: IClientBacking;
   clientDb: IClientDatabase;
   getChangesEndpoint: (after: number) => Promise<{ entries: LogEntry[]; latest: number }>;
@@ -17,14 +17,14 @@ export interface SyncflareClientOptions {
 }
 
 export class SyncflareClient {
-  public readonly fileLayer: FileLayer;
+  public readonly fileLayer: IFileLayer;
   public readonly metadata: MetadataLayer;
   public readonly reconciler: Reconciler;
   public readonly catchUp: CatchUpPlanner;
   private ws: WebSocket | null = null;
 
   constructor(private options: SyncflareClientOptions) {
-    this.fileLayer = new FileLayer(options.baseDir);
+    this.fileLayer = options.fileLayer;
     this.metadata = new MetadataLayer(options.clientDb);
     this.reconciler = new Reconciler(this.fileLayer, this.metadata, options.clientBacking);
     this.catchUp = new CatchUpPlanner(this.fileLayer, this.metadata, options.clientBacking);

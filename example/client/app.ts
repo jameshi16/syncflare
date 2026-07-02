@@ -1,4 +1,5 @@
 import { SyncflareClient } from "../../src/client/SyncflareClient";
+import { FileLayer } from "../../src/client/FileLayer";
 import { ClientDatabase } from "./ClientDatabase";
 import { HttpClientBacking } from "./HttpClientBacking";
 import { planChangeSet } from "../../src/server/ChangeSetPlanner";
@@ -10,9 +11,10 @@ const CLIENT_DB = process.env.CLIENT_DB ?? "./example/tmp/client.db";
 
 const clientBacking = new HttpClientBacking(SERVER_URL);
 const clientDb = new ClientDatabase(CLIENT_DB);
+const fileLayer = new FileLayer(BASE_DIR);
 
 const client = new SyncflareClient({
-  baseDir: BASE_DIR,
+  fileLayer,
   clientBacking,
   clientDb,
   getChangesEndpoint: async (after) => {
@@ -34,7 +36,7 @@ async function main(): Promise<void> {
   );
 
   console.log("Starting live sync...");
-  await client.fileLayer.startWatch();
+  await fileLayer.startWatch();
   await client.startLiveSync();
 
   console.log("Syncflare client running. Press Ctrl+C to stop.");

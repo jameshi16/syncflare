@@ -4,13 +4,9 @@ import type { Stats } from "node:fs";
 import { join, relative, dirname } from "node:path";
 import { normalizePath } from "../util/pathNormalizer";
 import { hashBuffer } from "../util/hash";
+import type { FileEvent, IFileLayer } from "../interfaces/IFileLayer";
 
-export interface FileEvent {
-  type: "add" | "change" | "unlink";
-  path: string;
-}
-
-export class FileLayer {
+export class FileLayer implements IFileLayer {
   private watcher: FSWatcher | null = null;
   private eventHandler: ((event: FileEvent) => void) | null = null;
 

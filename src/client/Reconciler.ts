@@ -1,11 +1,11 @@
-import { FileLayer } from "./FileLayer";
 import { MetadataLayer } from "./MetadataLayer";
+import type { IFileLayer } from "../interfaces/IFileLayer";
 import type { IClientBacking } from "../interfaces/IClientBacking";
 import { hashStream } from "../util/hash";
 
 export class Reconciler {
   constructor(
-    private fileLayer: FileLayer,
+    private fileLayer: IFileLayer,
     private metadata: MetadataLayer,
     private clientBacking: IClientBacking,
   ) {}

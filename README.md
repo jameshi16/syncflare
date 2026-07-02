@@ -55,14 +55,13 @@ Once the plan is generated, the client executes the changeset to catch up to the
 
 ## API
 
-The package exposes four core interfaces that must be implemented to establish synchronization:
+The package exposes five core interfaces that must be implemented to establish synchronization:
 
 * `IServerDatabase`: Handles appending to an append-only operations table server-side and retrieves specific ranges of log entries.
 * `IServerBacking`: The underlying storage engine that serves the actual files corresponding to the metadata in `IServerDatabase`.
 * `IClientBacking`: The client-side read interface for fetching remote file contents (e.g., over HTTP).
 * `IClientDatabase`: Manages the local client state, tracks file metadata, and stores the current synchronization log number.
-
-> **Note:** The package assumes a standard local filesystem capable of dispatching reliable file-change events (e.g., using Linux `inotify` or abstraction libraries like `chokidar`).
+* `IFileLayer`: Provides file I/O, directory scanning, and file-change watching on the client. The package ships a reference implementation (`FileLayer`) backed by `chokidar` and `node:fs`; alternative implementations can target platforms such as Tauri by implementing this interface.
 
 ---
 
@@ -74,5 +73,6 @@ The reference implementation inside the `example/` directory demonstrates:
 * `IServerBacking` acting as a mock local object store, represented by the `./remote/` directory.
 * `IClientBacking` implemented as an HTTP client (`HttpClientBacking`) that fetches files from the server's `/files/:path` endpoint.
 * `IClientDatabase` implemented via SQLite (`client.db`).
+* `IFileLayer` implemented via the reference `FileLayer` (using `chokidar` + `node:fs`).
 
 In this example, the "server" is driven by a lightweight Bun HTTP server simulating a serverless API, while the "client" is a Bun-powered application executing the boot-time reconciliation and log catch-up processes detailed above.

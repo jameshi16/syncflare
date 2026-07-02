@@ -1,11 +1,11 @@
 import type { AtomicOperation } from "../types";
-import { FileLayer } from "./FileLayer";
 import { MetadataLayer } from "./MetadataLayer";
+import type { IFileLayer } from "../interfaces/IFileLayer";
 import type { IClientBacking } from "../interfaces/IClientBacking";
 
 export class CatchUpPlanner {
   constructor(
-    private fileLayer: FileLayer,
+    private fileLayer: IFileLayer,
     private metadata: MetadataLayer,
     private clientBacking: IClientBacking,
   ) {}
